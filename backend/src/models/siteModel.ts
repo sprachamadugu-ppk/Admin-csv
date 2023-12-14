@@ -1,10 +1,20 @@
-import mongoose from "mongoose";
+import mongoose, { Document, Model } from "mongoose";
 
-const SiteSchema = new mongoose.Schema({
+interface ISiteDoc extends Document {
+  siteName: string;
+  siteNo: number;
+}
+
+interface ISiteModel extends Model<ISiteDoc> {}
+
+const siteSchema = new mongoose.Schema({
   siteName: String,
   siteNo: Number,
 });
 
-const Site = mongoose.model("Site", SiteSchema);
+const Site: ISiteModel = mongoose.model<ISiteDoc, ISiteModel>(
+  "Site",
+  siteSchema,
+);
 
-export default Site;
+export { Site, ISiteDoc, ISiteModel };

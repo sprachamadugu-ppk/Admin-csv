@@ -1,7 +1,3 @@
-export const generateSiteNumber = () => {
-  return Math.floor(Math.random() * 100) + 1;
-};
-
-export const generateDepartmentNumber = () => {
+export const generateNumber = () => {
   return Math.floor(Math.random() * 100) + 1;
 };

@@ -1,10 +1,20 @@
-import mongoose from "mongoose";
+import mongoose, { Document, Model } from "mongoose";
+
+interface IDepartmentDoc extends Document {
+  departmentName: string;
+  departmentNo: Number;
+}
+
+interface IDepartmentModel extends Model<IDepartmentDoc> {}
 
 const DepartmentSchema = new mongoose.Schema({
-  deapartmentName: String,
+  departmentName: String,
   departmentNo: Number,
 });
 
-const Department = mongoose.model("Department", DepartmentSchema);
+const Department: IDepartmentModel = mongoose.model<
+  IDepartmentDoc,
+  IDepartmentModel
+>("Department", DepartmentSchema);
 
-export default Department;
+export { Department, IDepartmentDoc, IDepartmentModel };

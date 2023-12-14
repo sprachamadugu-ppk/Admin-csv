@@ -1,39 +1,38 @@
-import Site from "../models/siteModel";
-import Department from "../models/departmentModel";
-import Employee from "../models/employeeModel";
-import {
-  generateSiteNumber,
-  generateDepartmentNumber,
-} from "../helper-functions";
+import { findOrCreateDepartment } from "../utils/departmentUtils";
+import { findOrCreateSite } from "../utils/siteUtils";
 import { EmployeeData } from "../interfaces/employee-inteface";
+import { IDepartmentDoc } from "../models/departmentModel";
+import Employee from "../models/employeeModel";
+import { ISiteDoc } from "../models/siteModel";
 
 export const handleEmployeeCreation = async (fileContents: EmployeeData[]) => {
+  const existingEmployees = await Employee.find({});
+  const newData: any[] = [];
+
   for (const employeeData of fileContents) {
-    let siteNo;
-    let departmentNo;
+    const site = await findOrCreateSite(employeeData.site);
+    const department = await findOrCreateDepartment(employeeData.department);
 
-    let site = await Site.findOne({ siteName: employeeData.site });
-    if (!site) {
-      siteNo = generateSiteNumber();
-      site = await Site.create({ siteName: employeeData.site, siteNo });
-    }
-    let department = await Department.findOne({
-      deapartmentName: employeeData.department,
-    });
-    if (!department) {
-      departmentNo = generateDepartmentNumber();
-      department = await Department.create({
-        deapartmentName: employeeData.department,
-        departmentNo,
-      });
-    }
+    let employee = existingEmployees.find(
+      (e) => e.firstName === employeeData.firstName,
+    );
 
-    await Employee.create({
-      firstName: employeeData.firstName,
-      middleName: employeeData.middleName,
-      lastName: employeeData.lastName,
-      site: site._id,
-      department: department._id,
-    });
+    if (!employee) {
+      const newEmployee = {
+        firstName: employeeData.firstName,
+        middleName: employeeData.middleName,
+        lastName: employeeData.lastName,
+        site: (site as ISiteDoc)._id,
+        department: (department as IDepartmentDoc)._id,
+      };
+
+      newData.push(newEmployee);
+    }
   }
+
+  if (newData.length > 0) {
+    await Employee.create(newData);
+  }
+
+  return newData;
 };

@@ -3,15 +3,21 @@ import mongoose from "mongoose";
 import bodyParser from "body-parser";
 import cors from "cors";
 import routes from "./routes";
+import dotenv from "dotenv";
+import path from "path";
+
+const envPath = path.join(__dirname, ".env");
+dotenv.config({ path: envPath });
 
 const app = express();
-const PORT = 3000;
+const connectionString = process.env.MONGODB_CONNECTION_STRING!;
+const PORT = process.env.PORT;
 
 app.use(bodyParser.json());
 app.use(cors());
 
 mongoose
-  .connect("mongodb://127.0.0.1:27017/admin-v1")
+  .connect(connectionString)
   .then(() => {
     console.log("Connection established");
   })

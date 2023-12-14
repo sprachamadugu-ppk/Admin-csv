@@ -1,14 +1,5 @@
 import React, { useState } from "react";
-import {
-  TextField,
-  Button,
-  MenuItem,
-  Select,
-  FormControl,
-  InputLabel,
-  Paper,
-  Typography,
-} from "@mui/material";
+import { message, Input, Select, Button, Form } from "antd";
 
 type RowObject = { [key: string]: string };
 
@@ -22,119 +13,125 @@ interface FileUploadFormProps {
   onSubmit: (data: FormData) => void;
 }
 
+const { Option } = Select;
+
 const FileUploadForm: React.FC<FileUploadFormProps> = ({ onSubmit }) => {
-  const [email, setEmail] = useState("");
-  const [fileType, setFileType] = useState("");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [form] = Form.useForm();
   const [fileTypeValid, setFileTypeValid] = useState(true);
+  const [fileUploading, setFileUploading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files.length > 0) {
-      const file = event.target.files[0];
-
-      const isValidFileType = file.name.toLowerCase().endsWith(".csv");
-
-      if (isValidFileType) {
-        setSelectedFile(file);
-        setFileTypeValid(true);
-      } else {
-        setSelectedFile(null);
-        setFileTypeValid(false);
-      }
-    }
+  const isCSV = (file: File) => {
+    return file.name.toLowerCase().endsWith(".csv");
   };
 
-  const handleSubmit = () => {
-    if (email && fileType && selectedFile && fileTypeValid) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const fileContentsString = event.target?.result as string;
-        const parsedFileContents = fileContentsString
-          .split("\n")
-          .map((line) => line.split(","));
+  const beforeUpload = (file: File) => {
+    if (!isCSV(file)) {
+      message.error("Invalid file type. Please select a valid CSV file.");
+      setFileTypeValid(false);
+    } else {
+      setFileTypeValid(true);
+      setSelectedFile(file);
+    }
+    return false;
+  };
 
-        const [header, ...data] = parsedFileContents;
+  const parseCSV = (fileContentsString: string): RowObject[] => {
+    const rows = fileContentsString.split("\n");
+    const header = rows[0].split(",").map((field) => field.trim());
 
-        const formattedData = data.map((row) =>
-          row.reduce((obj, value, index) => {
-            const fieldName = header[index].trim();
-            obj[fieldName] = value.trim();
-            return obj;
-          }, {} as RowObject),
-        );
+    return rows.slice(1).map((row) => {
+      const values = row.split(",").map((value) => value.trim());
+      const instance: RowObject = {};
+      header.forEach((fieldName, index) => {
+        instance[fieldName] = values[index];
+      });
+      return instance;
+    });
+  };
 
-        onSubmit({
-          email,
-          fileType,
-          fileContents: formattedData,
-        });
+  const handleSubmit = async () => {
+    try {
+      const values = await form.validateFields();
+      const { email, fileType } = values;
 
-        setEmail("");
-        setFileType("");
-        setSelectedFile(null);
-        setFileTypeValid(true);
-      };
+      if (fileTypeValid && selectedFile) {
+        setFileUploading(true);
 
-      reader.readAsText(selectedFile);
+        const reader = new FileReader();
+
+        reader.onload = (event) => {
+          try {
+            const fileContentsString = event.target?.result as string;
+            const fileContents = parseCSV(fileContentsString);
+
+            onSubmit({
+              email,
+              fileType,
+              fileContents,
+            });
+
+            form.resetFields();
+            setFileUploading(false);
+            message.success("File uploaded successfully");
+          } catch (error) {
+            console.error("Error parsing file:", error);
+            setFileTypeValid(false);
+            setFileUploading(false);
+          }
+        };
+
+        reader.readAsText(selectedFile);
+      }
+    } catch (error) {
+      console.error("Error validating form:", error);
+      setFileTypeValid(false);
+      setFileUploading(false);
     }
   };
 
   return (
-    <Paper
-      elevation={3}
-      style={{ padding: "20px", width: "300px", margin: "auto" }}
-    >
-      <TextField
+    <Form form={form} onFinish={handleSubmit}>
+      <Form.Item
         label="Email"
-        type="email"
-        fullWidth
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        margin="normal"
-      />
-
-      <FormControl fullWidth margin="normal">
-        <InputLabel>File Type</InputLabel>
-        <Select
-          value={fileType}
-          onChange={(e) => setFileType(e.target.value as string)}
-        >
-          <MenuItem value="site file">Site File</MenuItem>
-          <MenuItem value="department file">Department File</MenuItem>
-          <MenuItem value="employee file">Employee File</MenuItem>
-        </Select>
-      </FormControl>
-
-      {fileType && (
-        <div>
-          <input
-            type="file"
-            onChange={handleFileChange}
-            accept=".csv"
-            style={{ marginTop: "10px" }}
-          />
-        </div>
-      )}
-
-      {!fileTypeValid && (
-        <Typography
-          variant="caption"
-          color="error"
-          style={{ marginTop: "5px" }}
-        >
-          Invalid file type. Please select a valid CSV file.
-        </Typography>
-      )}
-
-      <Button
-        variant="contained"
-        color="primary"
-        style={{ marginTop: "20px" }}
-        onClick={handleSubmit}
+        name="email"
+        rules={[
+          { required: true, message: "Please enter your email!" },
+          { type: "email", message: "Please enter a valid email address!" },
+        ]}
       >
+        <Input type="email" />
+      </Form.Item>
+
+      <Form.Item
+        label="File Type"
+        name="fileType"
+        rules={[{ required: true, message: "Please select a file type!" }]}
+      >
+        <Select>
+          <Option value="site file">Site File</Option>
+          <Option value="department file">Department File</Option>
+          <Option value="employee file">Employee File</Option>
+        </Select>
+      </Form.Item>
+
+      <Form.Item label="Upload File">
+        <input
+          type="file"
+          accept=".csv"
+          onChange={(e) => {
+            const file = e.target.files && e.target.files[0];
+            if (file) {
+              beforeUpload(file);
+            }
+          }}
+        />
+      </Form.Item>
+
+      <Button type="primary" htmlType="submit" loading={fileUploading}>
         Submit
       </Button>
-    </Paper>
+    </Form>
   );
 };
 

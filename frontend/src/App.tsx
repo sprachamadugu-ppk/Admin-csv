@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { message } from "antd";
 import { processData } from "./api-data";
 import FileUploadForm, { FormData } from "./MyForm";
 
@@ -11,9 +12,11 @@ const App: React.FC = () => {
     try {
       const result = await processData(data);
       console.log("Backend response:", result);
+      message.success("File uploaded successfully");
       setRefreshKey((prevKey) => prevKey + 1);
     } catch (error) {
-      console.error(error);
+      console.error("Error processing data:", error);
+      message.error("Failed to upload file");
     }
   };
 
